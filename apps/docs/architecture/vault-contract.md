@@ -33,6 +33,8 @@ There is no `route_to` or protocol-selection parameter on `deposit`. Which proto
 
 Stamps `Entry(caller)` with the current ledger timestamp on the caller's first deposit. Top-ups do not reset the original entry time. Whether a deposit is a first deposit is decided by whether an `Entry(caller)` record exists, not by the caller's share balance: an address holding mUSDC it was transferred has never deposited, so its first deposit is a real entry. Accumulates `Principal(caller)` with `amount` on every deposit.
 
+**Known constraint — dust-position entry-time gaming:** "first deposit" here means `Balance(caller)` was `0` going in, not "no history." A partial withdrawal that leaves a non-zero dust balance (e.g. 1 stroop) does not clear `Entry(caller)` — only a full exit does (see `withdraw()` below) — so a much later, much larger top-up on that dust position is not a first deposit and inherits the original entry timestamp instead of getting a fresh one. This has no effect today: no entry point reads `Entry`/`get_entry_time` for anything but display. It becomes directly exploitable the moment any duration-gated feature (a fee discount, a loyalty multiplier, vesting) is built against raw `entry_time`. Do not build such a feature against the raw value without first switching the write path to a size-weighted average timestamp on top-up, so a large late deposit meaningfully pulls `entry_time` forward rather than inheriting the original stamp wholesale.
+
 ### `withdraw(caller, shares) -> Result<i128, ContractError>`
 
 Burns `shares` mUSDC from the caller, redeems the proportional adapter position, and returns the resulting USDC. Fails with `ZeroAmount` if `shares <= 0`, `NoSharesOutstanding` if the vault has no shares outstanding at all, `InsufficientShares` if the caller doesn't hold enough mUSDC, or `WithdrawalTooSmall` if the redemption rounds down to zero USDC.
@@ -52,7 +54,7 @@ Returns the address's mUSDC balance, read from the share token itself. mUSDC rec
 
 ### `get_entry_time(address) -> u64`
 
-Returns the ledger timestamp of the address's deposit, or `0` if it holds no position. Cleared on a full withdrawal so a later re-deposit starts a fresh clock, and reported as `0` for any address that currently holds no mUSDC, so a record left behind by a transfer-out is never shown as a live position.
+Returns the ledger timestamp of the address's current deposit, or `0` if it holds no position. Cleared on a full withdrawal so a later re-deposit starts a fresh clock, and self-heals on the next read for any address that currently holds no mUSDC, so a record left behind by a transfer-out is never shown as a live position. The one case that escapes both of these is a partial withdrawal that leaves dust; see the constraint noted under `deposit()` above. Currently read only for display; nothing on-chain or off-chain conditions behavior on it.
 
 ### `get_principal(address) -> i128`
 
