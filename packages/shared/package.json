@@ -5,7 +5,7 @@
   "main": "./dist/index.js",
   "types": "./src/index.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "node init && tsc",
     "test": "vitest run --passWithNoTests",
     "coverage": "vitest run --coverage --passWithNoTests",
     "typecheck": "tsc --noEmit"
