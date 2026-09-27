@@ -156,13 +156,7 @@ export async function fetchAllVaults(
 
   // Check shared Upstash cache first
   const cached = await getCachedVaults(network);
-  if (cached) {
-    try {
-      return JSON.parse(cached) as ApiVault[];
-    } catch (e) {
-      console.error("[vaults] Failed to parse cached vaults:", e);
-    }
-  }
+  if (cached) return cached;
 
   const pools = await getStellarStablecoinPools();
 
@@ -191,7 +185,7 @@ export async function fetchAllVaults(
   // Cache the result if we have data
   if (vaults.length > 0) {
     try {
-      await setCachedVaults(network, JSON.stringify(vaults));
+      await setCachedVaults(network, vaults);
     } catch (e) {
       console.error("[vaults] Failed to set cache:", e);
     }
